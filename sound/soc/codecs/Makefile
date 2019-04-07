@@ -223,7 +223,13 @@ obj-$(CONFIG_SND_SOC_MSM8X10_WCD)	+= snd-soc-msm8x10-wcd.o wcd9xxx-resmgr.o wcd9
 obj-$(CONFIG_SND_SOC_WCD9335)	+= snd-soc-wcd9335.o
 obj-$(CONFIG_AUDIO_EXT_CLK)	+= audio-ext-clock.o
 obj-$(CONFIG_SND_SOC_WCD9XXX)   += snd-soc-wcd9xxx.o
+#[PLATFORM]-Add-BEGIN by TCTNB.HJ, 2014/11/18, HIFI
+ifdef CONFIG_TCT_8X16_IDOL3
+obj-$(CONFIG_SND_SOC_MSM8X16_WCD)	+= snd-soc-msm8x16-wcd.o msm8916-wcd-irq.o ak4375.o
+else
 obj-$(CONFIG_SND_SOC_MSM8X16_WCD)	+= snd-soc-msm8x16-wcd.o msm8916-wcd-irq.o
+endif
+#[PLATFORM]-Add-END by TCTNB.HJ
 obj-$(CONFIG_SND_SOC_WCD_MBHC)  += snd-soc-wcd-mbhc.o
 obj-$(CONFIG_SND_SOC_WCD_CPE) += snd-soc-wcd-cpe.o
 obj-$(CONFIG_SND_SOC_MSM8909_WCD)	+= snd-soc-msm8909-wcd.o msm8916-wcd-irq.o
