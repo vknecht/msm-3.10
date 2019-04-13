@@ -48,6 +48,10 @@ module_param(disable_restart_work, uint, S_IRUGO | S_IWUSR);
 static int enable_debug;
 module_param(enable_debug, int, S_IRUGO | S_IWUSR);
 
+#ifdef CONFIG_MSM_DLOAD_MODE
+char panic_subsystem[16];
+#endif /* CONFIG_MSM_DLOAD_MODE */
+
 /* The maximum shutdown timeout is the product of MAX_LOOPS and DELAY_MS. */
 #define SHUTDOWN_ACK_MAX_LOOPS	50
 #define SHUTDOWN_ACK_DELAY_MS	100
@@ -942,6 +946,11 @@ int subsystem_restart_dev(struct subsys_device *dev)
 
 	pr_info("Restart sequence requested for %s, restart_level = %s.\n",
 		name, restart_levels[dev->restart_level]);
+	/* FR-793575, save subsystem name */
+#ifdef CONFIG_MSM_DLOAD_MODE
+	memset(panic_subsystem, 0, sizeof(panic_subsystem));
+	memcpy(panic_subsystem, name, strlen(name));
+#endif /* CONFIG_MSM_DLOAD_MODE */
 
 	if (disable_restart_work == DISABLE_SSR) {
 		pr_warn("subsys-restart: Ignoring restart request for %s.\n",
@@ -1442,6 +1451,13 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	subsys->notif_state = -1;
 	subsys->desc->sysmon_pid = -1;
 
+//lenovo sw, yexh1 add for set the modem resart level to RELATED at init
+	if (!strcmp(desc->name, "modem")){
+		subsys->restart_level = RESET_SUBSYS_COUPLED;
+		pr_info("set the %s restart level to RELATED'\n", desc->name);
+	}
+//lenovo sw, yexh1 end
+
 	subsys->notify = subsys_notif_add_subsys(desc->name);
 
 	snprintf(subsys->wlname, sizeof(subsys->wlname), "ssr(%s)", desc->name);
@@ -1591,6 +1607,10 @@ static int __init subsys_restart_init(void)
 			&panic_nb);
 	if (ret)
 		goto err_soc;
+
+#ifdef CONFIG_MSM_DLOAD_MODE
+	sprintf(panic_subsystem, "%s", "unknown");
+#endif /* CONFIG_MSM_DLOAD_MODE */
 
 	return 0;
 
