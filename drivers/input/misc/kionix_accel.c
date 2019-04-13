@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * [BUFFIX]-Mod by huangshenglin@hoperun,porting L->M, task-1175888,2015/12/17
  */
 
 #include <linux/kernel.h>
@@ -67,7 +67,7 @@
 #define KIONIX_ACCEL_WHO_AM_I_KXTJ9_1005	0x07
 #define KIONIX_ACCEL_WHO_AM_I_KXTJ9_1007	0x08
 #define KIONIX_ACCEL_WHO_AM_I_KXCJ9_1008	0x0A
-#define KIONIX_ACCEL_WHO_AM_I_KXTJ2_1029 0x09
+#define KIONIX_ACCEL_WHO_AM_I_KXTJ2_1009	0x09
 #define KIONIX_ACCEL_WHO_AM_I_KXCJK_1013	0x11
 
 
@@ -79,7 +79,7 @@
 #define KIONIX_ACCEL_GRP2	2	/* KXTF9/I9-1001/J9-1005 */
 #define KIONIX_ACCEL_GRP3	3	/* KXTIK-1004 */
 #define KIONIX_ACCEL_GRP4	4	/* KXTJ9-1007/KXCJ9-1008 */
-#define KIONIX_ACCEL_GRP5	5	/* KXTJ2-1009  KXTJ2-1029   */
+#define KIONIX_ACCEL_GRP5	5	/* KXTJ2-1009 */
 #define KIONIX_ACCEL_GRP6	6	/* KXCJK-1013 */
 
 /******************************************************************************
@@ -956,7 +956,11 @@ static void kionix_accel_grp4_report_accel_data(struct kionix_accel_driver
 	int err;
 	struct input_dev *input_dev = acceld->input_dev;
 	int loop;
-
+	//add by huangshenglin@hoperun,2016/1/4, task-1252678 ,sync event->time with hal.+++
+	ktime_t timestamp;
+	timestamp = ktime_get_boottime();
+	//add by huangshenglin@hoperun,2016/1/4 sync event->time with hal.--
+	
 	/* Only read the output registers if enabled */
 	if (atomic_read(&acceld->accel_enabled) > 0) {
 		if (atomic_read(&acceld->accel_enable_resume) > 0) {
@@ -986,13 +990,16 @@ static void kionix_accel_grp4_report_accel_data(struct kionix_accel_driver
 
 				x = ((s16)
 				     le16_to_cpu(accel_data.accel_data_s16
-						 [acceld->axis_map_x]));
+						 [acceld->axis_map_x])) >>
+				    acceld->shift;
 				y = ((s16)
 				     le16_to_cpu(accel_data.accel_data_s16
-						 [acceld->axis_map_y]));
+						 [acceld->axis_map_y])) >>
+				    acceld->shift;
 				z = ((s16)
 				     le16_to_cpu(accel_data.accel_data_s16
-						 [acceld->axis_map_z]));
+						 [acceld->axis_map_z])) >>
+				    acceld->shift;
 
 				acceld->accel_data[acceld->axis_map_x] =
 				    (acceld->negate_x ? -x : x) +
@@ -1018,6 +1025,10 @@ static void kionix_accel_grp4_report_accel_data(struct kionix_accel_driver
 							 ABS_Z,
 							 acceld->accel_data
 							 [acceld->axis_map_z]);
+	//add by huangshenglin@hoperun,2016/1/4, task-1252678 ,sync event->time with hal.+++
+					input_event(acceld->input_dev,EV_SYN, SYN_TIME_SEC,ktime_to_timespec(timestamp).tv_sec);
+					input_event(acceld->input_dev,EV_SYN, SYN_TIME_NSEC,ktime_to_timespec(timestamp).tv_nsec);
+	//add by huangshenglin@hoperun,2016/1/4 sync event->time with hal.--
 					input_sync(acceld->input_dev);
 				}
 				write_unlock(&acceld->rwlock_accel_data);
@@ -1730,9 +1741,9 @@ static int kionix_verify(struct kionix_accel_driver *acceld)
 		KMSGINF(&acceld->client->dev,
 			"this accelerometer is a KXCJ9-1008.\n");
 		break;
-	case KIONIX_ACCEL_WHO_AM_I_KXTJ2_1029:
+	case KIONIX_ACCEL_WHO_AM_I_KXTJ2_1009:
 		KMSGINF(&acceld->client->dev,
-			"this accelerometer is a KXTJ2-1029.\n");
+			"this accelerometer is a KXTJ2-1009.\n");
 		break;
 	case KIONIX_ACCEL_WHO_AM_I_KXCJK_1013:
 		KMSGINF(&acceld->client->dev,
@@ -2256,9 +2267,9 @@ static int kionix_accel_probe(struct i2c_client *client,
 		break;
 	case KIONIX_ACCEL_WHO_AM_I_KXTJ9_1007:
 	case KIONIX_ACCEL_WHO_AM_I_KXCJ9_1008:
-	case KIONIX_ACCEL_WHO_AM_I_KXTJ2_1029:
+	case KIONIX_ACCEL_WHO_AM_I_KXTJ2_1009:
 	case KIONIX_ACCEL_WHO_AM_I_KXCJK_1013:
-		if (err == KIONIX_ACCEL_WHO_AM_I_KXTJ2_1029)
+		if (err == KIONIX_ACCEL_WHO_AM_I_KXTJ2_1009)
 			acceld->accel_group = KIONIX_ACCEL_GRP5;
 		else if (err == KIONIX_ACCEL_WHO_AM_I_KXCJK_1013)
 			acceld->accel_group = KIONIX_ACCEL_GRP6;
@@ -2360,7 +2371,7 @@ static int kionix_accel_probe(struct i2c_client *client,
 	}
 
 	err =
-	    sysfs_create_group(&acceld->input_dev->dev.kobj,
+	    sysfs_create_group(&client->dev.kobj,
 			       &kionix_accel_attribute_group);
 	if (err) {
 		KMSGERR(&acceld->client->dev,
@@ -2474,7 +2485,7 @@ static const struct i2c_device_id kionix_accel_id[] = {
 };
 
 static struct of_device_id kionix_accel_match_table[] = {
-	{.compatible = "kionix,kxtj2-1029",},
+	{.compatible = "kionix,kxtj2-1009",},
 	{},
 };
 
