@@ -296,8 +296,13 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
 
 			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
-				gpio_set_value((ctrl_pdata->rst_gpio),
-					pdata->panel_info.rst_seq[i]);
+/* [PLATFORM]-Mod-BEGIN by TCTNB.CY, PR-789023, 2014/11/20, add r63315 lcd reset */
+#ifdef CONFIG_TCT_8X16_IDOL3
+				gpio_direction_output((ctrl_pdata->rst_gpio), pdata->panel_info.rst_seq[i]);
+#else
+				gpio_set_value((ctrl_pdata->rst_gpio), pdata->panel_info.rst_seq[i]);
+#endif
+/* [PLATFORM]-Mod-END by TCTNB.CY */
 				if (pdata->panel_info.rst_seq[++i])
 					usleep(pinfo->rst_seq[i] * 1000);
 			}
