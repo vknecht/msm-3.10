@@ -60,7 +60,10 @@ static int lsm_port_index;
 static int slim0_rx_aanc_fb_port;
 static int msm_route_ec_ref_rx = 8; /* NONE */
 static uint32_t voc_session_id = ALL_SESSION_VSID;
-static int msm_route_ext_ec_ref = AFE_PORT_INVALID;
+/* lenovo-sw zhangrc2 change I2S CLK  timing sequence 2015-03-30 */
+//static int msm_route_ext_ec_ref = AFE_PORT_INVALID;
+static int msm_route_ext_ec_ref = 0;
+/* lenovo-sw zhangrc2 change I2S CLK  timing sequence 2015-03-30 */
 static bool is_custom_stereo_on;
 static bool is_ds2_on;
 static int msm_ec_ref_port_id;
@@ -1985,9 +1988,13 @@ static int msm_routing_ext_ec_put(struct snd_kcontrol *kcontrol,
 	int mux = ucontrol->value.enumerated.item[0];
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	int ret = 0;
+	uint16_t ext_ec_ref_port_id;
 	bool state = false;
 
-	pr_debug("%s: msm_route_ec_ref_rx = %d value = %ld\n",
+	pr_info("%s: msm_route_ec_ref_rx = %d value = %ld\n",
+		 __func__, msm_route_ext_ec_ref,
+		 ucontrol->value.integer.value[0]);
+	printk("%s: msm_route_ec_ref_rx = %d value = %ld\n",
 		 __func__, msm_route_ext_ec_ref,
 		 ucontrol->value.integer.value[0]);
 
@@ -1999,26 +2006,31 @@ static int msm_routing_ext_ec_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&routing_lock);
 	switch (ucontrol->value.integer.value[0]) {
 	case EC_PORT_ID_PRIMARY_MI2S_TX:
-		msm_route_ext_ec_ref = AFE_PORT_ID_PRIMARY_MI2S_TX;
+		ext_ec_ref_port_id = AFE_PORT_ID_PRIMARY_MI2S_TX;
+		msm_route_ext_ec_ref = 1;
 		state = true;
 		break;
 	case EC_PORT_ID_SECONDARY_MI2S_TX:
-		msm_route_ext_ec_ref = AFE_PORT_ID_SECONDARY_MI2S_TX;
+		ext_ec_ref_port_id = AFE_PORT_ID_SECONDARY_MI2S_TX;
+		msm_route_ext_ec_ref = 2;
 		state = true;
 		break;
 	case EC_PORT_ID_TERTIARY_MI2S_TX:
-		msm_route_ext_ec_ref = AFE_PORT_ID_TERTIARY_MI2S_TX;
+		ext_ec_ref_port_id = AFE_PORT_ID_TERTIARY_MI2S_TX;
+		msm_route_ext_ec_ref = 3;
 		state = true;
 		break;
 	case EC_PORT_ID_QUATERNARY_MI2S_TX:
-		msm_route_ext_ec_ref = AFE_PORT_ID_QUATERNARY_MI2S_TX;
+		ext_ec_ref_port_id = AFE_PORT_ID_QUATERNARY_MI2S_TX;
+		msm_route_ext_ec_ref = 4;
 		state = true;
 		break;
 	default:
-		msm_route_ext_ec_ref = AFE_PORT_INVALID;
+		ext_ec_ref_port_id = AFE_PORT_INVALID;
+		msm_route_ext_ec_ref = 0;
 		break;
 	}
-	if (!voc_set_ext_ec_ref(msm_route_ext_ec_ref, state)) {
+	if (!voc_set_ext_ec_ref(ext_ec_ref_port_id, state)) {
 		mutex_unlock(&routing_lock);
 		snd_soc_dapm_mux_update_power(widget, kcontrol, mux, e);
 	} else {
@@ -2027,7 +2039,7 @@ static int msm_routing_ext_ec_put(struct snd_kcontrol *kcontrol,
 	}
 	return ret;
 }
-
+/* lenovo-sw zhangrc2 change I2S CLK  timing sequence 2015-03-30 */
 static const char * const ext_ec_ref_rx[] = {"NONE", "PRI_MI2S_TX",
 					     "SEC_MI2S_TX", "TERT_MI2S_TX",
 					     "QUAT_MI2S_TX"};
@@ -2522,6 +2534,11 @@ static const struct snd_kcontrol_new mi2s_hl_mixer_controls[] = {
 	SOC_SINGLE_EXT("INTERNAL_FM_TX", MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 	MSM_BACKEND_DAI_INT_FM_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+/* [AUDIO]-ADD BEGIN by fu.yu,2015-12-17,Task-1175992,for smart PA from L */		
+	SOC_SINGLE_EXT("TERT_MI2S_TX", MSM_BACKEND_DAI_SECONDARY_MI2S_RX,		
+	MSM_BACKEND_DAI_TERTIARY_MI2S_TX, 1, 0, msm_routing_get_port_mixer,		
+	msm_routing_put_port_mixer),		
+/* [AUDIO]-ADD END by fu.yu,2015-12-17 */
 };
 
 static const struct snd_kcontrol_new primary_mi2s_rx_mixer_controls[] = {
@@ -6051,6 +6068,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{"SEC_MI2S_RX Port Mixer", "PRI_MI2S_TX", "PRI_MI2S_TX"},
 	{"SEC_MI2S_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
+/* [AUDIO]-ADD BEGIN by fu.yu,2015-12-17,Task-1175992,for smart PA from L */		
+	{"SEC_MI2S_RX Port Mixer", "TERT_MI2S_TX", "TERT_MI2S_TX"},		
+/* [AUDIO]-ADD END by fu.yu */
 
 	{"PRI_MI2S_RX Audio Mixer", "MultiMedia1", "MM_DL1"},
 	{"PRI_MI2S_RX Audio Mixer", "MultiMedia2", "MM_DL2"},
@@ -6670,7 +6690,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_DL_HL"},
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_DL_HL"},
 	{"QUAT_MI2S_UL_HL", NULL, "QUAT_MI2S_TX"},
-
+/* [AUDIO]-ADD BEGIN by fu.yu,2015-12-17,Task-1175992,for smart PA from L */		
+#if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)		
+	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_DL_HL"},		
+#endif		
+/* [AUDIO]-ADD END by fu.yu,2015-12-17 */
 	{"SLIMBUS_0_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
 	{"SLIMBUS_0_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
 	{"SLIMBUS_0_RX Port Mixer", "SLIM_1_TX", "SLIMBUS_1_TX"},
@@ -6785,6 +6809,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{"QUAT_MI2S_RX Port Mixer", "PRI_MI2S_TX", "PRI_MI2S_TX"},
 	{"QUAT_MI2S_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
+/* [AUDIO]-ADD BEGIN by fu.yu,2015-12-17,Task-1175992,for smart PA from L */		
+	{"QUAT_MI2S_RX Port Mixer", "TERT_MI2S_TX", "TERT_MI2S_TX"},		
+/* [AUDIO]-ADD END by fu.yu,2015-12-17 */
 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX Port Mixer"},
 
 	/* Backend Enablement */
