@@ -79,6 +79,28 @@ static int32_t msm_actuator_piezo_set_default_focus(
 	return rc;
 }
 
+/* [PLATFORM]-Mod-BEGIN by TCTNB.YJ, add for rear camera on idol3  */
+#if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)|| defined(CONFIG_TCT_8X16_M823_ORANGE)
+extern int32_t special_actuator4tct;
+extern int32_t special_actuator_s5k3m2;
+extern uint16_t S5K3M2_AF_MACRO;
+extern uint16_t S5K3M2_AF_INF;
+#endif
+
+#if defined(CONFIG_TCT_8X16_IDOL3)
+extern uint16_t S5K3M2_IDOL3_AF_MACRO;
+extern uint16_t S5K3M2_IDOL3_AF_INF;
+#endif
+/* [PLATFORM]-Mod-END by TCTNB.YJ*/
+
+#ifdef CONFIG_TCT_8X16_M823_ORANGE
+extern uint16_t  S5K3M2_M823_ORANGE_AF_MACRO;
+extern uint16_t  S5K3M2_M823_ORANGE_AF_INF;
+extern uint16_t inf_otp_imx214;
+extern uint16_t mac_otp_imx214;
+#endif 
+
+/* [PLATFORM]-Mod-BEGIN by TCTNB.YJ, add for rear camera on idol3  */
 static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 	int16_t next_lens_position, uint32_t hw_params, uint16_t delay)
 {
@@ -88,15 +110,46 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 	uint16_t value = 0;
 	uint32_t size = a_ctrl->reg_tbl_size, i = 0;
 	struct msm_camera_i2c_reg_array *i2c_tbl = a_ctrl->i2c_reg_tbl;
+
+	 /*[CAMERA]-ADD BEGIN by wenlong.song,2015-12-18,Task-1177157 ,for camera from L*/
+	CDBG("Enter,%s,next_lens_position = %d\n",__func__,next_lens_position);
+#if defined(CONFIG_TCT_8X16_IDOL347)
+    if (special_actuator_s5k3m2 && S5K3M2_AF_MACRO != 0)
+    {
+       // pr_err("%s,S5K3M2_AF_MACRO = %d,S5K3M2_AF_INF = %d,next_lens_position = %d\n",__func__,S5K3M2_AF_MACRO,S5K3M2_AF_INF,next_lens_position);
+        next_lens_position = (S5K3M2_AF_MACRO - S5K3M2_AF_INF) * next_lens_position / 1024 + S5K3M2_AF_INF;
+        //pr_err("%s,recalculate next_lens_position = %d\n",__func__,next_lens_position);
+    }
+#endif
+
+#if defined(CONFIG_TCT_8X16_IDOL3)
+    if (2 == special_actuator4tct)
+    {
+	//pr_err("%s,S5K3M2_IDOL3_AF_MACRO = %d,S5K3M2_IDOL3_AF_INF = %d,next_lens_position = %d\n",__func__,S5K3M2_IDOL3_AF_MACRO,S5K3M2_IDOL3_AF_INF,next_lens_position);
+	next_lens_position = (S5K3M2_IDOL3_AF_MACRO - S5K3M2_IDOL3_AF_INF) * next_lens_position / 1023 + S5K3M2_IDOL3_AF_INF;
+	//pr_err("%s,recalculate next_lens_position = %d\n",__func__,next_lens_position);
+    }
+#endif
+
+
+#if defined(CONFIG_TCT_8X16_M823_ORANGE)
+    if (2 == special_actuator4tct)
+    {
+	//pr_err("%s,S5K3M2_M823_ORANGE_AF_MACRO = %d,S5K3M2_M823_ORANGE_AF_INF = %d,next_lens_position = %d\n",__func__,S5K3M2_M823_ORANGE_AF_MACRO,S5K3M2_M823_ORANGE_AF_INF,next_lens_position);
+	next_lens_position = (S5K3M2_M823_ORANGE_AF_MACRO - S5K3M2_M823_ORANGE_AF_INF) * next_lens_position / 1023 + S5K3M2_M823_ORANGE_AF_INF;
+	//pr_err("%s,recalculate next_lens_position = %d\n",__func__,next_lens_position);
+    }
+#endif
+
+
+ /*[CAMERA]-ADD END by wenlong.song,2015-12-18,Task-1177157 ,for camera from L*/
+
 	CDBG("Enter\n");
 
-	if (a_ctrl == NULL) {
-		pr_err("failed. actuator ctrl is NULL");
-		return;
-	}
-
-	if (a_ctrl->i2c_reg_tbl == NULL) {
-		pr_err("failed. i2c reg tabl is NULL");
+	if ((!a_ctrl) ||
+		(!a_ctrl->reg_tbl) ||
+		(!a_ctrl->i2c_reg_tbl)) {
+		pr_err("failed. NULL actuator pointers");
 		return;
 	}
 
@@ -105,6 +158,11 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 	i2c_tbl = a_ctrl->i2c_reg_tbl;
 
 	for (i = 0; i < size; i++) {
+		/* check that the index into i2c_tbl cannot grow larger that
+		the allocated size of i2c_tbl */
+		if ((a_ctrl->total_steps + 1) < (a_ctrl->i2c_tbl_index)) {
+			break;
+		}
 		if (write_arr[i].reg_write_type == MSM_ACTUATOR_WRITE_DAC) {
 			value = (next_lens_position <<
 				write_arr[i].data_shift) |
@@ -115,6 +173,12 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 				i2c_byte1 = write_arr[i].reg_addr;
 				i2c_byte2 = value;
 				if (size != (i+1)) {
+/* [PLATFORM]-Mod-BEGIN by TCTNB.YJ, add for rear camera on idol3  */
+#if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)|| defined(CONFIG_TCT_8X16_M823_ORANGE)
+					if (1 == special_actuator4tct)
+						i2c_byte2 = (value & 0xFF00) >> 8;
+					else
+#endif
 					i2c_byte2 = value & 0xFF;
 					CDBG("byte1:0x%x, byte2:0x%x\n",
 						i2c_byte1, i2c_byte2);
@@ -132,12 +196,74 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 					a_ctrl->i2c_tbl_index++;
 					i++;
 					i2c_byte1 = write_arr[i].reg_addr;
-					i2c_byte2 = (value & 0xFF00) >> 8;
+
+#if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)|| defined(CONFIG_TCT_8X16_M823_ORANGE)
+					if (1 == special_actuator4tct)
+						i2c_byte2 = value & 0xFF;
+					else
+#endif
+						i2c_byte2 = (value & 0xFF00) >> 8;
+/* [PLATFORM]-Mod-END by TCTNB.YJ*/
 				}
 			} else {
 				i2c_byte1 = (value & 0xFF00) >> 8;
 				i2c_byte2 = value & 0xFF;
 			}
+			 /*[CAMERA]-ADD BEGIN by wenlong.song,2015-12-18,Task-1177157 ,for camera from L*/
+			}else if (write_arr[i].reg_write_type ==
+			MSM_ACTUATOR_WRITE_AK7348) {
+			value = (next_lens_position <<
+				write_arr[i].data_shift) |
+				((hw_dword & write_arr[i].hw_mask) >>
+				write_arr[i].hw_shift);
+				i2c_byte1 = write_arr[i].reg_addr;
+				i2c_byte2 = value;
+				if (size != (i+1)) {
+					i2c_byte2 = (value & 0x1FF) >> 1;
+					CDBG("byte1:0x%x, byte2:0x%x\n",
+						i2c_byte1, i2c_byte2);
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						reg_addr = i2c_byte1;
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						reg_data = i2c_byte2;
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						delay = 0;
+					a_ctrl->i2c_tbl_index++;
+					i++;
+					i2c_byte1 = write_arr[i].reg_addr;
+					i2c_byte2 = (value & 0x1) << 7;
+			}
+#ifdef CONFIG_TCT_8X16_M823_ORANGE
+		} if (write_arr[i].reg_write_type == MSM_ACTUATOR_WRITE_AK7345_v2) {
+            next_lens_position = ((mac_otp_imx214+15) - inf_otp_imx214) * next_lens_position / 1023 + inf_otp_imx214;
+            value = (next_lens_position <<
+                write_arr[i].data_shift) |
+                ((hw_dword & write_arr[i].hw_mask) >>
+                write_arr[i].hw_shift);
+
+            if (write_arr[i].reg_addr != 0xFFFF) {
+                i2c_byte1 = write_arr[i].reg_addr;
+                i2c_byte2 = value;
+                if (size != (i+1)) {
+                    i2c_byte2 = (value & 0xFF00) >> 8;
+
+                    CDBG("byte1:0x%x, byte2:0x%x\n",
+                        i2c_byte1, i2c_byte2);
+                    i2c_tbl[a_ctrl->i2c_tbl_index].reg_addr = i2c_byte1;
+                    i2c_tbl[a_ctrl->i2c_tbl_index].reg_data = i2c_byte2;
+                    i2c_tbl[a_ctrl->i2c_tbl_index].delay = 0;
+
+                    a_ctrl->i2c_tbl_index++;
+                    i++;
+                    i2c_byte1 = write_arr[i].reg_addr;
+                    i2c_byte2 = value & 0xFF;
+                }
+		    } else {
+                i2c_byte1 = (value & 0xFF00) >> 8;
+                i2c_byte2 = value & 0xFF;
+            }
+#endif
+ /*[CAMERA]-ADD END by wenlong.song,2015-12-18,Task-1177157 ,for camera from L*/
 		} else {
 			i2c_byte1 = write_arr[i].reg_addr;
 			i2c_byte2 = (hw_dword & write_arr[i].hw_mask) >>
@@ -155,7 +281,124 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 	}
 	CDBG("Exit\n");
 }
+ /*[CAMERA]-ADD BEGIN by wenlong.song,2015-12-18,Task-1177157 ,for camera from L*/
+/* [PLATFORM]-Mod-END by TCTNB.YJ*/
 
+/* FotoNation begin */
+void msm_actuator_parse_i2c_params_ff_map(struct msm_actuator_ctrl_t *a_ctrl,
+	int16_t next_lens_position, uint32_t hw_params, uint16_t delay)
+{
+	struct msm_actuator_reg_params_t *write_arr = a_ctrl->reg_tbl;
+	uint32_t hw_dword = hw_params;
+	uint16_t i2c_byte1 = 0, i2c_byte2 = 0;
+	uint16_t value = 0;
+	uint32_t size = a_ctrl->reg_tbl_size, i = 0;
+	struct msm_camera_i2c_reg_array *i2c_tbl = a_ctrl->i2c_reg_tbl;
+	//pr_err("Enter,%s,next_lens_position = %d\n",__func__,next_lens_position);
+#if defined(CONFIG_TCT_8X16_IDOL347)
+    if (special_actuator_s5k3m2 && S5K3M2_AF_MACRO != 0)
+    {
+        //pr_err("%s,S5K3M2_AF_MACRO = %d,S5K3M2_AF_INF = %d,next_lens_position = %d\n",__func__,S5K3M2_AF_MACRO,S5K3M2_AF_INF,next_lens_position);
+        next_lens_position = (S5K3M2_AF_MACRO*115/100 - S5K3M2_AF_INF*85/100) * next_lens_position / 1024 + S5K3M2_AF_INF*85/100;
+        //pr_err("%s,recalculate next_lens_position = %d\n",__func__,next_lens_position);
+    }
+#endif
+
+#if defined(CONFIG_TCT_8X16_IDOL3)
+    if (2 == special_actuator4tct)
+    {
+	//pr_err("%s,S5K3M2_IDOL3_AF_MACRO = %d,S5K3M2_IDOL3_AF_INF = %d,next_lens_position = %d\n",__func__,S5K3M2_IDOL3_AF_MACRO,S5K3M2_IDOL3_AF_INF,next_lens_position);
+	next_lens_position = (S5K3M2_IDOL3_AF_MACRO*115/100 - S5K3M2_IDOL3_AF_INF*85/100) * next_lens_position / 1023 + S5K3M2_IDOL3_AF_INF*85/100;
+	//pr_err("%s,recalculate next_lens_position = %d\n",__func__,next_lens_position);
+    }
+#endif
+
+	for (i = 0; i < size; i++) {
+		/* check that the index into i2c_tbl cannot grow larger that
+		the allocated size of i2c_tbl */
+		if ((a_ctrl->total_steps + 1) < (a_ctrl->i2c_tbl_index)) {
+			break;
+		}
+		if (write_arr[i].reg_write_type == MSM_ACTUATOR_WRITE_DAC) {
+			value = (next_lens_position <<
+				write_arr[i].data_shift) |
+				((hw_dword & write_arr[i].hw_mask) >>
+				write_arr[i].hw_shift);
+
+			if (write_arr[i].reg_addr != 0xFFFF) {
+				i2c_byte1 = write_arr[i].reg_addr;
+				i2c_byte2 = value;
+				if (size != (i+1)) {
+/* [PLATFORM]-Mod-BEGIN by TCTNB.YJ, add for rear camera on idol3  */
+#if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)
+					if (1 == special_actuator4tct)
+						i2c_byte2 = (value & 0xFF00) >> 8;
+					else
+#endif
+						i2c_byte2 = value & 0xFF;
+					CDBG("byte1:0x%x, byte2:0x%x\n",
+						i2c_byte1, i2c_byte2);
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						reg_addr = i2c_byte1;
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						reg_data = i2c_byte2;
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						delay = 0;
+					a_ctrl->i2c_tbl_index++;
+					i++;
+					i2c_byte1 = write_arr[i].reg_addr;
+
+#if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)
+					if (1 == special_actuator4tct)
+						i2c_byte2 = value & 0xFF;
+					else
+#endif
+						i2c_byte2 = (value & 0xFF00) >> 8;
+/* [PLATFORM]-Mod-END by TCTNB.YJ*/
+				}
+			} else {
+				i2c_byte1 = (value & 0xFF00) >> 8;
+				i2c_byte2 = value & 0xFF;
+			}
+			}else if (write_arr[i].reg_write_type ==
+			MSM_ACTUATOR_WRITE_AK7348) {
+			value = (next_lens_position <<
+				write_arr[i].data_shift) |
+				((hw_dword & write_arr[i].hw_mask) >>
+				write_arr[i].hw_shift);
+				i2c_byte1 = write_arr[i].reg_addr;
+				i2c_byte2 = value;
+				if (size != (i+1)) {
+					i2c_byte2 = (value & 0x1FF) >> 1;
+					CDBG("byte1:0x%x, byte2:0x%x\n",
+						i2c_byte1, i2c_byte2);
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						reg_addr = i2c_byte1;
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						reg_data = i2c_byte2;
+					i2c_tbl[a_ctrl->i2c_tbl_index].
+						delay = 0;
+					a_ctrl->i2c_tbl_index++;
+					i++;
+					i2c_byte1 = write_arr[i].reg_addr;
+					i2c_byte2 = (value & 0x1) << 7;
+			}
+
+		} else {
+			i2c_byte1 = write_arr[i].reg_addr;
+			i2c_byte2 = (hw_dword & write_arr[i].hw_mask) >>
+				write_arr[i].hw_shift;
+		}
+		CDBG("i2c_byte1:0x%x, i2c_byte2:0x%x\n", i2c_byte1, i2c_byte2);
+		i2c_tbl[a_ctrl->i2c_tbl_index].reg_addr = i2c_byte1;
+		i2c_tbl[a_ctrl->i2c_tbl_index].reg_data = i2c_byte2;
+		i2c_tbl[a_ctrl->i2c_tbl_index].delay = delay;
+		a_ctrl->i2c_tbl_index++;
+	}
+	pr_err("Exit\n");
+}
+/* FotoNation end */
+ /*[CAMERA]-ADD END by wenlong.song,2015-12-18,Task-1177157 ,for camera from L*/
 static int32_t msm_actuator_init_focus(struct msm_actuator_ctrl_t *a_ctrl,
 	uint16_t size, struct reg_settings_t *settings)
 {
@@ -367,6 +610,8 @@ static int32_t msm_actuator_move_focus(
 		a_ctrl->curr_step_pos, dest_step_pos, curr_lens_pos);
 
 	while (a_ctrl->curr_step_pos != dest_step_pos) {
+		if (a_ctrl->curr_region_index >= a_ctrl->region_size)
+			break;
 		step_boundary =
 			a_ctrl->region_params[a_ctrl->curr_region_index].
 			step_bound[dir];
@@ -558,13 +803,13 @@ static int32_t msm_actuator_init_step_table(struct msm_actuator_ctrl_t *a_ctrl,
 				a_ctrl->step_position_table[step_index] =
 					cur_code;
 			} else {
-				for (; step_index <
-					set_info->af_tuning_params.total_steps;
-					step_index++)
+				//for (; step_index <
+					//set_info->af_tuning_params.total_steps;
+					//step_index++) {
 					a_ctrl->
 						step_position_table[
 						step_index] =
-						max_code_size;
+						max_code_size - 1;
 			}
 			CDBG("step_position_table [%d] %d\n", step_index,
 			a_ctrl->step_position_table[step_index]);
