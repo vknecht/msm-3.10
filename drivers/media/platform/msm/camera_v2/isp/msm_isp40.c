@@ -402,7 +402,18 @@ static void msm_vfe40_init_hardware_reg(struct vfe_device *vfe_dev)
 	msm_vfe40_init_qos_parms(vfe_dev, &qos_parms, &ds_parms);
 	msm_vfe40_init_vbif_parms(vfe_dev, &vbif_parms);
 	/* BUS_CFG */
-	msm_camera_io_w(0x10000009, vfe_dev->vfe_base + 0x50);
+#if defined CONFIG_TCT_8X16_IDOL347
+    /* Changing the bus config MAL length to 1024 bits */
+    msm_camera_io_w(0x90000009, vfe_dev->vfe_base + 0x50);
+    /* Enabling MAL for each WM*/
+    msm_camera_io_w(0x00000001, vfe_dev->vfe_base + 0x78);
+    msm_camera_io_w(0x00000001, vfe_dev->vfe_base + 0x9C);
+    msm_camera_io_w(0x00000001, vfe_dev->vfe_base + 0xC0);
+    msm_camera_io_w(0x00000001, vfe_dev->vfe_base + 0xE4);
+#else
+	msm_camera_io_w(0x10000001, vfe_dev->vfe_base + 0x50);
+#endif
+
 	msm_camera_io_w(0xE00000F1, vfe_dev->vfe_base + 0x28);
 	msm_camera_io_w_mb(0xFEFFFFFF, vfe_dev->vfe_base + 0x2C);
 	msm_camera_io_w(0xFFFFFFFF, vfe_dev->vfe_base + 0x30);
