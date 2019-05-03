@@ -53,7 +53,7 @@ extern int32_t ov5670_truly_otp_config(struct msm_sensor_ctrl_t * s_ctrl);
 int actuator_exist = 1;
 
 #if !defined(CONFIG_TCT_8X16_POP10) && !defined(CONFIG_TCT_8X16_M823_ORANGE)
-#define TCT_SENSOR_OTP_OPEN 0
+#define TCT_SENSOR_OTP_OPEN 1
 #if TCT_SENSOR_OTP_OPEN
 #include "s5k5e2_alto45_v4l2_tct_OTP.h"
 #include "ov5670_alto45_v4l2_tct_OTP.h"
@@ -1004,8 +1004,7 @@ FotoNation end
 #endif
 		return 0;
 /* [PLATFORM]-Add-END by TCTSZ.ZKX 2014/09/06*/
-/////(vk) #if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)
-#if defined(CONFIG_TCT_8X16_IDOL347)
+#if defined(CONFIG_TCT_8X16_IDOL3) || defined(CONFIG_TCT_8X16_IDOL347)
 //wenyuan.li@tcl 20150228 bug936683 get framelength from kernel +
 	case VIDIOC_MSM_SENSOR_FRAMELENGTH:
 		pr_err("[tct_dxo]VIDIOC_MSM_SENSOR_FRAMELENGTH received\n");
